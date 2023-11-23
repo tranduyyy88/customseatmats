@@ -1,5 +1,5 @@
 import "./App.css";
-import Header from "./components/header";
+import Header from "./components/Header";
 import Announcement from "./pages/Home/Announcement";
 import Footer from "./components/Footer";
 import Router from "./router";

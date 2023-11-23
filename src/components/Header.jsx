@@ -244,9 +244,9 @@ export default function Header() {
                   onClick={handleNavigation}
                 >
                   <path
-                    clip-rule="evenodd"
+                    clipRule="evenodd"
                     d="m9 15c0-.5523.44772-1 1-1h6c.5523 0 1 .4477 1 1s-.4477 1-1 1h-6c-.55228 0-1-.4477-1-1zm-6-10c0-.55229.44771-1 1-1h12c.5523 0 1 .44771 1 1 0 .55228-.4477 1-1 1h-12c-.55229 0-1-.44772-1-1zm0 5c0-.55228.44771-1 1-1h12c.5523 0 1 .44772 1 1 0 .5523-.4477 1-1 1h-12c-.55229 0-1-.4477-1-1z"
-                    fill-rule="evenodd"
+                    fillRule="evenodd"
                   />
                 </svg>
               </li>
