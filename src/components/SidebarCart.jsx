@@ -1,0 +1,272 @@
+import { Fragment, useContext, useEffect, useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { Cart, HandleSidebarCart } from "../App";
+import { loadCartAPI, updateCartLines } from "../middlewave/cart/listAPI";
+import Quantity from "./Quantity";
+import { checkOut, checkoutCreateAPI } from "../middlewave/checkout/listAPI";
+import { getCookie } from "../constants/getCookies";
+import { ToastContainer, toast } from "react-toastify";
+
+function SidebarCart() {
+  const [accessToken, setAccessToken] = useState("");
+  const [checkoutID, setCheckoutID] = useState("");
+  const theme = useContext(HandleSidebarCart);
+  const emp_quantity = 0;
+  const lineItems = [];
+  const getCart = useContext(Cart);
+
+  useEffect(() => {
+    async function getCartData(cartID) {
+      const response = await loadCartAPI(cartID);
+      getCart.setCart({
+        checkoutUrl: response.checkoutUrl,
+        estimatedCost: response.estimatedCost,
+        lines: response.lines.edges,
+      });
+    }
+    let localCartData = JSON.parse(window.localStorage.getItem("shopify:cart"));
+    if (localCartData) getCartData(localCartData.cartID);
+  }, [theme.open, getCart.setCart]);
+
+  const handleRemoveProduct = (id) => {
+    let localCartData = JSON.parse(window.localStorage.getItem("shopify:cart"));
+    async function changeQuantity(cartID, id, emp_quantity) {
+      const response = await updateCartLines(cartID, id, emp_quantity);
+      getCart.setCart({
+        checkoutUrl: response.cart.checkoutUrl,
+        estimatedCost: response.cart.estimatedCost,
+        lines: response.cart.lines.edges,
+      });
+    }
+    changeQuantity(localCartData.cartID, id, emp_quantity);
+  };
+  const handleCheckout = (e) => {
+    e.preventDefault();
+    setAccessToken(getCookie("AccessTokenShopify"));
+    getCart.cart.lines.map((item) => {
+      lineItems.push({
+        quantity: item.node.quantity,
+        variantId: item.node.merchandise.id,
+      });
+    });
+
+    const variables = { lineItems: lineItems };
+    async function checkoutCreate(lineItems) {
+      const response = await checkoutCreateAPI(lineItems);
+      setCheckoutID(response.checkout.id);
+    }
+    checkoutCreate(variables);
+  };
+  useEffect(() => {
+    async function checkout(checkoutID, accessToken) {
+      const response = await checkOut(checkoutID, accessToken);
+      window.location.href = response.checkout.webUrl;
+    }
+
+    if (accessToken != " " && checkoutID != "") {
+      if (!accessToken) {
+        toast.error("You need to log in to pay");
+        setTimeout(function () {
+          window.location.replace("/login");
+        }, 2000);
+      } else {
+        checkout(checkoutID, accessToken);
+      }
+    }
+  }, [accessToken, checkoutID]);
+
+  return (
+    <>
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable={false}
+        pauseOnHover={false}
+        theme="light"
+      />
+      <Transition.Root show={theme.open} as={Fragment}>
+        <Dialog as="div" className="relative z-[999]" onClose={theme.setOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-in-out duration-500"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in-out duration-500"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                <Transition.Child
+                  as={Fragment}
+                  enter="transform transition ease-in-out duration-500 sm:duration-700"
+                  enterFrom="translate-x-full"
+                  enterTo="translate-x-0"
+                  leave="transform transition ease-in-out duration-500 sm:duration-700"
+                  leaveFrom="translate-x-0"
+                  leaveTo="translate-x-full"
+                >
+                  <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
+                    <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
+                      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+                        <div className="flex items-start justify-between">
+                          <Dialog.Title className="text-lg font-medium text-gray-900">
+                            Shopping cart
+                          </Dialog.Title>
+                          <div className="ml-3 flex h-7 items-center">
+                            <button
+                              type="button"
+                              className="relative -m-2 p-2 text-gray-400 hover:text-gray-500"
+                              onClick={() => theme.setOpen(false)}
+                            >
+                              <span className="absolute -inset-0.5" />
+                              <span className="sr-only">Close panel</span>
+                              <XMarkIcon
+                                className="h-6 w-6"
+                                aria-hidden="true"
+                              />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div
+                          className={
+                            getCart.cart.lines.length == 0
+                              ? "flex justify-center items-center h-full"
+                              : "mt-8"
+                          }
+                        >
+                          <div className="flow-root">
+                            {getCart.cart.lines.length > 0 ? (
+                              <ul
+                                role="list"
+                                className="-my-6 divide-y divide-gray-200"
+                              >
+                                {getCart.cart.lines.map((product, i) => (
+                                  <li key={i} className="flex py-6">
+                                    <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                                      <img
+                                        src={product.node.merchandise.image.url}
+                                        alt=""
+                                        className="h-full w-full object-cover object-center"
+                                      />
+                                    </div>
+                                    <div className="ml-4 flex flex-1 flex-col">
+                                      <div>
+                                        <div className="flex justify-between text-base font-medium text-gray-900">
+                                          <h3>
+                                            <a href="">
+                                              {
+                                                product.node.merchandise.product
+                                                  .title
+                                              }
+                                            </a>
+                                          </h3>
+                                          <p className="ml-4">
+                                            {
+                                              product.node.merchandise.priceV2
+                                                .amount
+                                            }{" "}
+                                            {
+                                              product.node.merchandise.priceV2
+                                                .currencyCode
+                                            }
+                                          </p>
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                          {product.node.merchandise.title}
+                                        </p>
+                                      </div>
+                                      <div className="flex mt-[15px] flex-1 items-end justify-between text-sm">
+                                        <Quantity
+                                          quantity={product.node.quantity}
+                                          id={product.node.id}
+                                        />
+                                        <div className="flex">
+                                          <button
+                                            type="button"
+                                            className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-500"
+                                            onClick={() =>
+                                              handleRemoveProduct(
+                                                product.node.id
+                                              )
+                                            }
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="empty-cart text-center font-poppins italic">
+                                Cart empty cart
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+                        <div className="flex justify-between text-base font-medium text-gray-900">
+                          <p>Subtotal</p>
+                          <p>
+                            {getCart.cart.lines.length > 0
+                              ? getCart.cart.estimatedCost.subtotalAmount.amount
+                              : "0"}{" "}
+                            {getCart.cart.lines.length > 0
+                              ? getCart.cart.estimatedCost.subtotalAmount
+                                  .currencyCode
+                              : "USD"}
+                          </p>
+                        </div>
+                        <p className="mt-0.5 text-sm text-gray-500">
+                          Shipping and taxes calculated at checkout.
+                        </p>
+                        <div className="mt-6">
+                          <a
+                            href="#"
+                            onClick={handleCheckout}
+                            className="flex items-center justify-center rounded-md border border-transparent bg-dark-orange px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700"
+                          >
+                            Checkout
+                          </a>
+                        </div>
+                        <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
+                          <p>
+                            <button
+                              type="button"
+                              className="font-medium text-dark-orange hover:text-indigo-500"
+                              onClick={() => theme.setOpen(false)}
+                            >
+                              Continue Shopping
+                              <span aria-hidden="true"> &rarr;</span>
+                            </button>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      </Transition.Root>
+    </>
+  );
+}
+
+export default SidebarCart;
